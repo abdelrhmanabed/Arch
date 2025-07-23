@@ -1,0 +1,87 @@
+1. The instruction size and the word size is 16 bits ?
+
+
+encoding for each instruction is 16 bits.
+
+2.8 16-bit general-purpose registers: from R0 to R7 ?
+
+
+each register is 16-bit in length we can refer to the value by the register file and provide numbers that describes them .
+
+R  | bit i |number for register file
+
+R0 : 000 constant 0
+R1 : 001 16 bit length
+R2 : 010 //
+R3 : 011
+R4 : 100
+R5 : 101
+R6 : 110
+R7 : 111 //
+
+bit i differentiate the bit if it was general or not
+
+3. R0 is hardwired to zero. Any attempt to write it will be discarded 
+
+while defining "encoding the instructions we set some constrains :"
+
+constrain 1 :
+
+R0 can't be the destination register :
+
+lD R0 R1 R2  --> R0 isn't valid in this position .
+
+store R0 R1 (any other type for this instruction) :
+
+isn't valid since R0 always have the 0 value .
+
+
+4. 16-bit special purpose register for the program counter (PC):
+
+R  | bit i |number for register file
+R16   1      111
+
+5. Four instruction types (R-type, I-type, J-type, and S-type):
+
+
+instruction types we will operate with could by differentiable by the bytes for the instructions and a counter for the registers with conditional statements 
+
+reffere to the paper for information
+
+
+6.Separate data and instruction memories
+
+
+instruction fetch and memory and register file etc are separated from each other
+
+
+7.Byte addressable memory
+
+????????????????????
+
+8.Little endian byte ordering
+
+if the word is 0x1234, 0x34 is stored at the lower address, and 0x12 is stored at the next address.
+
+9.you need to generate the required signals from the ALU to calculate the condition branch outcome (taken/not taken). These signals might include zero, carry, overflow, etc
+
+
+
+flags that shows the results for the ALU and other indicators :
+
+
+add :
+    zero flag 
+    overflow flag
+    carry flag
+
+
+etc...
+
+
+
+
+
+
+
+

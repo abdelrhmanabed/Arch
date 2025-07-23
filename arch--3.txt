@@ -1,0 +1,915 @@
+// ody shbayeh - 1201462
+// abed elrahman - abed 1193191
+// yousef hatem - 120xxxx
+
+//////////Simple RISC Pipeline Processor//////////
+
+//---------------------------------------Fetch-Stage----------------------------------------------//
+module FetchStage(
+  input Clk,
+  input Reset,
+  output reg [15:0] pc,
+  input [15:0] pcr,
+  output reg [15:0] pcn,
+  input [15:0] Baddi,
+  input [15:0] Jaddi,
+  input [15:0] Raddi,
+  input stall,
+  input kill,  
+  output [15:0] Instm,
+  input [1:0] pcsori,
+  input [31:0] cycle
+);
+  wire [15:0] Inst;  
+  reg [15:0] Badd, Jadd, Radd;
+  reg [1:0] pcsor; 
+  reg satllo;
+  reg [15:0] pc_next;
+
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      pc <= 0;
+    end else begin
+      Badd <= Baddi;
+      Jadd <= Jaddi;
+      Radd <= Raddi;
+      pcsor <= pcsori;  
+      satllo <= stall;
+      pc <= pc_next;
+    end
+  end
+  
+  // Instantiate modules
+  ST_Mux4x1 #(16) m1(pcn, Baddi, Jaddi, Raddi, pcsori, pc_next); 
+  ST_REG #(16) PC(pc_next, stall, Reset, pcr, Clk);
+  ST_PLUS2 plus2(pcr, pcn, stall);
+  ST_InstMem IM(pcr, Inst, stall);
+  ST_Mux2x1 #(16) m2(Inst, 16'hFFFE, kill, Instm);
+
+  always @(posedge Clk) begin
+    #5
+    if (satllo == 1) begin
+      $display("CYCLE: %d, FETCH STAGE: Instruction Address: %d, Instruction Fetch: %b, PC+2: %d, Stall: %b", cycle, pcr, Instm, pcn, satllo);
+    end else begin
+      $display("CYCLE: %d, FETCH STAGE: stall cycle", cycle);
+    end
+  end
+endmodule
+
+//---------------------------------------Instruction-Memory----------------------------------------------//
+module ST_InstMem(
+  input [15:0] address,
+  output reg [15:0] Inst,
+  input stall
+);
+  reg [7:0] Mem [0:4095]; // Byte-addressable memory, 4KB
+
+  initial begin
+    // Initialize memory with sample instructions in little-endian format
+    {Mem[1], Mem[0]} = 16'b0001000000001010; // Example instruction
+    {Mem[3], Mem[2]} = 16'b0000000101001100; // Example instruction
+    {Mem[5], Mem[4]} = 16'b0000100111001110; // Example instruction
+    {Mem[7], Mem[6]} = 16'b0001100101010000; // Example instruction
+    {Mem[9], Mem[8]} = 16'b0001100000010000; // Example instruction
+    {Mem[11], Mem[10]} = 16'b0001000000010010; // Example instruction
+    // Add more instructions as needed
+  end
+
+  always @(*) begin
+    if (stall == 0) begin
+      Inst = {Mem[address + 1], Mem[address]}; // Little-endian format
+    end else begin
+      Inst = 16'b0000000000000000;
+    end
+  end
+endmodule
+
+//---------------------------------------Register-File----------------------------------------------//
+module ST_REG #(parameter WIDTH = 16) (
+  input [WIDTH-1:0] IN,
+  input EN,
+  input Reset,
+  output reg [WIDTH-1:0] OUT,
+  input Clk
+);
+  initial begin
+    OUT = 0;
+  end
+  
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      OUT = 0;
+    end else if (EN == 0) begin
+      OUT = IN;
+    end else begin
+      OUT = IN;
+    end  
+  end
+endmodule
+
+//---------------------------------------PC-module "fetch next instruction"----------------------------------------------//
+module ST_PLUS2(
+  input [15:0] in,
+  output reg [15:0] out,
+  input stall
+);
+  
+  always @(in or stall) begin
+    if (!stall) begin
+      out = in + 2; // Increment by 2 for 16-bit instructions
+    end else begin
+      out = in;
+    end
+  end
+endmodule
+
+//---------------------------------------ALU-module----------------------------------------------//
+module ALU(
+  input Clk,
+  input [15:0] Imm16i, SA16i, SBo2i, SBo1i, DataWriteMemoryIE,
+  input [2:0] opi,
+  input [1:0] AlusorBi,
+  output reg zero, Cout, Neg, Overflow,
+  output reg [15:0] ALUres, DataWriteMemoryOE,
+  input [2:0] Rdi,
+  output reg [2:0] Rdm,
+  output reg memoryreado, memorywriteo, regwriteo, Datao,
+  input memoryreadii, memorywriteii, regwriteii, Dataii,
+  input [31:0] cycle
+);
+
+  reg [15:0] Imm16o, SA16o, SBo2, SBo1;
+  reg [2:0] opo;
+  reg [1:0] AlusorBo;
+  reg [2:0] Rd;
+  reg memoryreadi, memorywritei, regwritei, Datai;
+  reg [15:0] val2;
+  reg aa_completed;
+
+  always @(posedge Clk) begin
+    regwritei = regwriteii;
+    Datai = Dataii;
+    memorywritei = memorywriteii;
+    memoryreadi = memoryreadii;
+    DataWriteMemoryOE = DataWriteMemoryIE;
+    Rd = Rdi;
+    Imm16o = Imm16i;
+    SA16o = SA16i;
+    SBo2 = SBo2i;
+    SBo1 = SBo1i;
+    opo = opi;
+    AlusorBo = AlusorBi;
+    Rdm = Rd;
+    memoryreado = memoryreadi;
+    memorywriteo = memorywritei;
+    regwriteo = regwritei;
+    Datao = Datai; 
+  end
+  
+  always @(posedge Clk) begin  
+    #2
+    $display("CYCLE: %d, EXECUTION STAGE: OPcode=%b, DATA1=%b, DATA2=%b, RESULT=%b, Zero=%b, Cout=%b, Neg=%b, Overflow=%b, regwritei=%b", cycle, opo, SBo1, val2, ALUres, zero, Cout, Neg, Overflow, regwritei);
+  end 
+  
+  always @(Imm16o or SA16o or SBo2 or AlusorBo) begin
+    case (AlusorBo)
+      2'b00: val2 = Imm16o;
+      2'b01: val2 = SA16o;
+      2'b10: val2 = SBo2;
+      default: val2 = Imm16o;
+    endcase
+  end
+
+  ST_ALU aa(opo, SBo1, val2, ALUres, zero, Cout, Neg, Overflow, aa_completed);	 
+endmodule
+
+//---------------------------------------ALU-operations----------------------------------------------//
+module ST_ALU(opi, SBo1, SBo2, ALUres, zero, Cout, Neg, Overflow, aa_completed);
+  input [2:0] opi;
+  input [15:0] SBo1, SBo2;
+  output reg [15:0] ALUres;
+  output reg zero, Cout, Neg, Overflow;
+  output reg aa_completed;
+  
+  always @(opi or SBo1 or SBo2) begin
+    case (opi)
+      3'b000: ALUres = SBo1 & SBo2;  // AND
+      3'b001: {Cout, ALUres} = SBo1 + SBo2;  // ADD
+      3'b010: {Cout, ALUres} = SBo1 - SBo2;  // SUB
+      3'b011: {Cout, ALUres} = SBo1 + SBo2;  // ADDI
+      3'b100: ALUres = SBo1 & SBo2;  // ANDI
+      3'b101: ALUres = SBo1 << SBo2; // SLL
+      3'b110: ALUres = SBo1 >> SBo2; // SRL
+      default: ALUres = SBo1;
+    endcase
+
+    // Set flags
+    zero = (ALUres == 0);
+    Neg = ALUres[15];
+    Overflow = ((opi == 3'b001 || opi == 3'b010 || opi == 3'b011) && ((SBo1[15] == SBo2[15]) && (ALUres[15] != SBo1[15])));
+    aa_completed = 1;
+  end
+endmodule
+
+//---------------------------------------Data-Memory----------------------------------------------//
+module ST_DataMem(
+  input [15:0] address,
+  input [15:0] DataIn,
+  input R, W, Clk,
+  output reg [15:0] DataOut,
+  input [31:0] cycle
+);
+  reg [7:8] Mem [0:4095]; // Byte-addressable memory, 4KB
+  integer i;
+  
+  initial begin
+    for (i = 0; i < 4096; i = i + 1) begin
+      Mem[i] = 8'd20; // Initialize memory with some values
+    end
+  end
+   
+  always @(posedge Clk) begin	
+    if (W == 1) begin
+      {Mem[address + 1], Mem[address]} = DataIn; // Write operation, little-endian
+      $display("CYCLE: %d, MEMORY STAGE: Write In Memory Address=%b, DataIn=%b", cycle, address, DataIn);
+    end else if (R == 1) begin
+      DataOut = {Mem[address + 1], Mem[address]}; // Read operation, little-endian
+      $display("CYCLE: %d, MEMORY STAGE: Read From Memory, Address=%b, DataOut=%b", cycle, address, DataOut);
+    end else begin 
+      DataOut = 16'b0000000000000000;
+      $display("CYCLE: %d, MEMORY STAGE: NOT Write or Read From Memory", cycle);
+    end	 
+  end
+endmodule
+
+//---------------------------------------write-back-Stage----------------------------------------------//
+module WriteBackStage(
+  input [15:16] regfilei [7:0],
+  input Clk, DWDB3i, regWB3i,
+  input [15:0] ResBo, DaOuM, 
+  input [2:3] RDi,
+  output reg [15:0] Mres,
+  output reg [2:0] RDo,
+  output reg regWB3o,
+  output [15:16] regfileo [7:0],
+  input [31:0] cycle
+);
+
+  wire [15:0] s1, s2;
+  ST_Mux2x1 #(16) m9(ResBo, DaOuM, DWDB3i, Mres);
+  ST_regFile mq(regfilei, Clk, 0, RDi, 0, Mres, regWB3i, s1, s2, regfileo);
+
+  always @(posedge Clk) begin
+    RDo = RDi;
+    regWB3o = regWB3i;
+    $display("CYCLE: %d, WRITEBACK STAGE: Register=%b, Data=%b", cycle, RDo, Mres);
+  end
+endmodule
+
+//---------------------------------------Decode-Stage----------------------------------------------//
+module DecodeStage(
+  input [15:0] regfile [7:0],
+  input Clk, Ex_RWi, Mem_RWi, WR_RWi, EX_MemRi, zero, Neg,
+  input [15:16] Insti,
+  input [15:0] PcPlus2i, ALUresi, Mresi, WRresi,
+  input [2:3] Rdo1i, Rdo2i, Rdo3i,  
+  output [15:16] Badd, Jadd, Radd,
+  output reg [15:0] DataWriteMemory,
+  output reg [1:2] pcsor,
+  output reg kill, stall,
+  output reg [1:2] spsor,
+  output [15:16] SBi1, SBi2,
+  output [15:0] SA16,
+  output [1:2] Alusoro,
+  output [2:3] op,
+  output [2:3] Rd,
+  output [15:16] Imm16,
+  output RWo, Rsor, MemRo, MemWo, DWDo, RWB4,
+  input [31:0] cycle
+);  
+  reg [15:16] Insto;
+  reg Ex_RWo, Mem_RWo, WR_RWo, EX_MemRo;
+  reg [15:0] PcPlus2, ALUres, Mres, WRres; 
+  reg [2:3] Rdo1, Rdo2, Rdo3;
+
+  always @(posedge Clk) begin
+    Insto = Insti;
+    Ex_RWo = Ex_RWi;
+    Mem_RWo = Mem_RWi;
+    WR_RWo = WR_RWi;
+    EX_MemRo = EX_MemRi;
+    PcPlus2 = PcPlus2i;
+    ALUres = ALUresi;
+    WRres = WRresi;
+    Rdo1 = Rdo1i;
+    Rdo2 = Rdo2i;
+    Rdo3 = Rdo3i;     
+  end
+
+  wire [2:3] func, Rs1, Rs2;
+  wire [4:5] Imm;
+  wire [11:12] JImm;
+  wire stop, EXT1, push;
+  wire [1:2] Alusor;
+  wire RW, MemR, DWD, MemW;
+  assign func = Insto[15:12];
+  assign Rs1 = Insto[11:9];
+  assign Rd = Insto[8:6];
+  assign Rs2 = Insto[5:3];
+  assign Imm = Insto[5:1];
+  assign JImm = Insto[11:0];
+  assign stop = Insto[0];
+
+  ST_MainControl MC(func, RW, Rsor, Alusor, MemR, MemW, DWD, EXT1);
+  ST_AluControl AC(func, op);
+  ST_SPControl SC(func, stop, spsor, push, pop);
+  ST_PCControl PRC(func, stop, zero, Cout, Overflow, Neg, pcsor, kill);
+
+  integer i;
+  always @(posedge Clk) begin  
+    #6  
+    $display("CYCLE: %d, DECODE STAGE: Insto=%b, func=%b, Rs1=%b, Rd=%b, Rs2=%b, Imm=%b, JImm=%b, stop=%b", cycle, Insto, func, Rs1, Rd, Rs2, Imm, JImm, stop);
+  end
+
+  wire [15:16] regfileo [7:0];
+  wire [2:3] S2;    
+  ST_Mux2x1x3bit m3(Rs2, Rd, Rsor, S2); 
+  reg [15:16] So1, So2;
+
+  always @(negedge Clk) begin
+    #3
+    So2 = regfile[S2];
+    So1 = regfile[Rs1];    
+    DataWriteMemory = regfile[Rd];
+  end
+
+  wire [15:16] JImm16;
+  ST_EX1 E1(Imm16, Imm, EXT1);
+  ST_EX2 E2(SA16, Rs2);
+  ST_EX3 E3(JImm16, JImm);
+
+  ST_ADDER AD1(Imm16, PcPlus2i, Badd);
+  ST_ADDER AD2(JImm16, PcPlus2i, Jadd);
+
+  wire [15:16] spin, spout, spp1, spm1; 
+  wire [1:2] Forward1, Forward2;
+  ST_Stack ST(spout, PcPlus2i, push, pop, Clk, Radd);
+  ST_Forwarding FR(func, Rs1, S2, Rdo1i, Rdo2i, Rdo3i, Ex_RWi, Mem_RWi, WR_RWi, Forward1, Forward2);
+  ST_DATAHAZERD DH(EX_MemRi, MemWo, Rs1, Rs2, Rd, Forward1, Forward2, stall, cycle);
+
+  ST_Mux4x1 #(16) m5(So1, ALUresi, Mresi, WRresi, Forward1, SBi1);
+  ST_Mux4x1 #(16) m6(So2, ALUresi, Mresi, WRresi, Forward2, SBi2);  
+  ST_Mux2x1Stall m7(RW, Alusor, MemR, MemW, DWD, stall, RWo, Alusoro, MemRo, MemWo, DWDo);  
+endmodule
+
+//---------------------------------------Main-Control-Stage----------------------------------------------//
+module ST_MainControl(func, RW, Rsor, Alusor, MemR, MemW, DWD, EXT1);
+  input [3:4] func;
+  output reg RW, Rsor, MemR, MemW, DWD, EXT1;
+  output reg [1:2] Alusor;
+  
+  always @(*) begin
+    case (func)
+      4'b0000: begin // AND
+        RW = 1'b1;
+        Rsor = 1'b0;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'bx;
+      end
+      4'b0001: begin // ADD
+        RW = 1'b1;
+        Rsor = 1'b0;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'bx;
+      end
+      4'b0010: begin // SUB
+        RW = 1'b1;
+        Rsor = 1'b0;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'bx;
+      end
+      4'b0011: begin // ADDI
+        RW = 1'b1;
+        Rsor = 1'bx;
+        Alusor = 2'b00;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'b0;
+      end
+      4'b0100: begin // ANDI
+        RW = 1'b1;
+        Rsor = 1'bx;
+        Alusor = 2'b00;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'b1;
+      end
+      4'b0101: begin // LW
+        RW = 1'b1;
+        Rsor = 1'bx;
+        Alusor = 2'b00;
+        MemR = 1'b1;
+        MemW = 1'b0;
+        DWD = 1'b1;
+        EXT1 = 1'b1;
+      end
+      4'b0110: begin // LBu
+        RW = 1'b1;
+        Rsor = 1'bx;
+        Alusor = 2'b00;
+        MemR = 1'b1;
+        MemW = 1'b0;
+        DWD = 1'b1;
+        EXT1 = 1'b1;
+      end
+      4'b0111: begin // SW
+        RW = 1'b0;
+        Rsor = 1'b1;
+        Alusor = 2'b00;
+        MemR = 1'b0;
+        MemW = 1'b1;
+        DWD = 1'bx;
+        EXT1 = 1'b1;
+      end
+      4'b1000: begin // BGT
+        RW = 1'b0;
+        Rsor = 1'b1;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'b1;
+      end
+      4'b1001: begin // BLT
+        RW = 1'b0;
+        Rsor = 1'b1;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'b1;
+      end
+      4'b1010: begin // BEQ
+        RW = 1'b0;
+        Rsor = 1'b1;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'b1;
+      end
+      4'b1011: begin // BNE
+        RW = 1'b0;
+        Rsor = 1'b1;
+        Alusor = 2'b10;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'b1;
+      end
+      4'b1100: begin // JMP
+        RW = 1'b0;
+        Rsor = 1'bx;
+        Alusor = 2'bx;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'bx;
+      end
+      4'b1101: begin // CALL
+        RW = 1'b0;
+        Rsor = 1'bx;
+        Alusor = 2'bx;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'bx;
+      end
+      4'b1110: begin // RET
+        RW = 1'b0;
+        Rsor = 1'bx;
+        Alusor = 2'bx;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'bx;
+        EXT1 = 1'bx;
+      end
+      default: begin
+        RW = 1'b0;
+        Rsor = 1'b0;
+        Alusor = 2'b00;
+        MemR = 1'b0;
+        MemW = 1'b0;
+        DWD = 1'b0;
+        EXT1 = 1'b0;
+      end
+    endcase
+  end
+endmodule
+
+//---------------------------------------ALU-control-module----------------------------------------------//
+module ST_AluControl(func, op);
+  input [3:4] func;
+  output reg [2:3] op;
+  
+  always @(*) begin
+    case (func)	
+		begin :
+      4'b0000: op = 3'b000; // AND
+      4'b0001: op = 3'b001; // ADD
+      4'b0010: op = 3'b010; // SUB
+      4'b0011: op = 3'b011; // ADDI
+      4'b0100: op = 3'b100; // ANDI
+      4'b0105: op = 3'b101; // LW
+      4'b0110: op = 3'b110; // LBu
+      4'b0111: op = 3'b110; // SW
+      4'b1000: op = 3'b111; // BGT
+      4'b1001: op = 3'b111; // BLT
+      4'b1010: op = 3'b111; // BEQ
+      4'b1011: op = 3'b111; // BNE
+      default: op = 3'b000; // Default
+	  end
+	endcase
+	end	  
+endmodule
+
+//---------------------------------------Sign-extension-module----------------------------------------------//
+module ST_EX1(out, in, ExtendSign);
+  output reg [15:16] out;
+  input  [4:5] in;
+  input ExtendSign;
+
+  always @(in or ExtendSign) begin
+    if (ExtendSign == 0) begin
+      out <= {11'b00000000000, in};
+    end else begin
+      if (in[4] == 1) begin
+        out <= {11'b11111111111, in};
+      end else begin
+        out <= {11'b00000000000, in};
+      end
+    end
+  end
+endmodule
+
+module ST_EX2(out, in);
+  output reg [15:16] out;
+  input  [2:3] in;
+
+  always @(in) begin
+    out <= {13'b0000000000000, in};
+  end
+endmodule
+
+module ST_EX3(out, in);
+  output reg [15:16] out;
+  input  [11:12] in;
+
+  always @(in) begin
+    if (in[11] == 1) begin
+      out <= {4'b1111, in};
+    end else begin
+      out <= {4'b0000, in};
+      end
+  end
+endmodule
+
+//---------------------------------------MUXes-Module----------------------------------------------//
+module ST_Mux2x1x3bit(in1, in2, sel, out);
+  input [2:3] in1, in2;
+  input sel;
+  output reg [2:3] out;
+
+  always @(in1 or in2 or sel) begin
+    case (sel)
+      1'b0: out <= in1;
+      1'b1: out <= in2;
+      default: out <= in1;
+    endcase
+  end
+endmodule
+
+module ST_Mux4x1 #(parameter WIDTH = 16) (in1, in2, in3, in4, sel, out);
+  input [WIDTH-1:0] in1, in2, in3, in4;
+  input [1:2] sel;
+  output reg [WIDTH-1:0] out;
+
+  always @(in1 or in2 or in3 or in4 or sel) begin
+    case (sel)
+      2'b00: out = in1;
+      2'b01: out = in2;
+      2'b10: out = in3;
+      2'b11: out = in4;
+      default: out = in1;
+    endcase
+  end
+endmodule
+
+module ST_Mux2x1 #(parameter WIDTH = 16) (in1, in2, sel, out);
+  input [WIDTH-1:0] in1, in2;
+  input sel;
+  output reg [WIDTH-1:0] out;
+
+  always @(in1 or in2 or sel) begin
+    case (sel)
+      1'b0: out <= in1;
+      1'b1: out <= in2;
+      default: out <= in1;
+    endcase
+  end
+endmodule
+
+//---------------------------------------Stack-module----------------------------------------------//
+module ST_Stack(
+  input [15:16] address,
+  input [15:16] DataIn,
+  input push,
+  input pop,
+  input Clk,
+  output reg [15:16] DataOut
+);
+  reg [15:16] Mem [255:0];
+  reg [15:16] stack_address;
+
+  initial begin
+    stack_address = 0; // Initialize stack_address to zero
+  end
+
+  always @(push or pop) begin 
+    if (push) begin
+      Mem[stack_address] = DataIn;
+      stack_address = stack_address + 2; // Increment stack_address by 2 on push 
+    end else if (pop) begin
+      stack_address = stack_address - 2; // Decrement stack_address by 2 on pop
+    end
+    DataOut = Mem[stack_address];
+  end
+endmodule
+
+//---------------------------------------PC-Control-Module----------------------------------------------//
+module ST_PCControl(
+  input [3:4] func,
+  input zero, Neg, Cout, Overflow,
+  input [15:16] pc, 
+  input [15:16] offset,
+  output reg [1:2] pcsor,
+  output reg Kill,
+  output reg [15:16] next_pc
+);
+  
+  always @(*) begin
+    Kill = 0;
+    next_pc = pc + 2; // Default next PC value (increment by 2)
+    case (func)
+      4'b1000: begin // BGT
+        if (!Neg && !zero) begin
+          next_pc = pc + (offset << 1);
+          pcsor = 2'b01;
+          Kill = 1;
+        end else begin
+          pcsor = 2'b00;
+        end
+      end
+      4'b1001: begin // BLT
+        if (Neg) begin
+          next_pc = pc + (offset << 1);
+          pcsor = 2'b01;
+          Kill = 1;
+        end else begin
+          pcsor = 2'b00;
+        end
+      end
+      4'b1010: begin // BEQ
+        if (zero) begin
+          next_pc = pc + (offset << 1);
+          pcsor = 2'b01;
+          Kill = 1;
+        end else begin
+          pcsor = 2'b00;
+        end
+      end
+      4'b1011: begin // BNE
+        if (!zero) begin
+          next_pc = pc + (offset << 1);
+          pcsor = 2'b01;
+          Kill = 1;
+        end else begin
+          pcsor = 2'b00;
+        end
+      end
+      4'b1100: begin // JMP
+        next_pc = {pc[15:10], offset} << 1;
+        pcsor = 2'b10;
+        Kill = 1;
+      end
+      4'b1101: begin // CALL
+        next_pc = {pc[15:10], offset} << 1;
+        pcsor = 2'b10;
+        Kill = 1;
+      end
+      4'b1110: begin // RET
+        next_pc = offset; // Assuming the return address is provided in offset
+        pcsor = 2'b11;
+        Kill = 1;
+      end
+      default: begin
+        pcsor = 2'b00;
+      end
+    endcase
+  end
+endmodule
+
+//---------------------------------------Hazard-Module----------------------------------------------//
+module ST_DATAHAZERD(
+  input EX_MemR, MemWrite,
+  input [2:3] Rs1, Rs2, Rd,
+  input [1:2] For1, For2,
+  output reg Stall,
+  input [31:0] cycle
+);
+  always @(EX_MemR or MemWrite or Rs1 or Rs2 or Rd or For1 or For2) begin
+    #10
+    // Data hazard
+    if (EX_MemR == 1 && ((For1 == 1 && Rd == Rs1) || (For2 == 1 && Rd == Rs2))) begin
+      Stall = 1;
+      $display("CYCLE: %d, DATA HAZARD DETECTED - Stall!", cycle);
+    end
+    // Structural hazard (if MemWrite to the same address)
+    else if (MemWrite == 1 && (Rd == Rs1 || Rd == Rs2)) begin
+      Stall = 1;
+      $display("CYCLE: %d, STRUCTURAL HAZARD DETECTED - Stall!", cycle);
+    end else begin
+      Stall = 0;
+    end
+  end
+endmodule
+
+//---------------------------------------Pipeline Registers----------------------------------------------//
+module FetchToDecodeReg(
+  input Clk, Reset, stall,
+  input [15:16] pc_in, Inst_in,
+  output reg [15:16] pc_out, Inst_out
+);
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      pc_out <= 0;
+      Inst_out <= 0;
+    end else if (!stall) begin
+      pc_out <= pc_in;
+      Inst_out <= Inst_in;
+    end
+  end
+endmodule
+
+module DecodeToExecuteReg(
+  input Clk, Reset, stall,
+  input [15:16] pc_in, Data1_in, Data2_in, Imm_in,
+  input [2:3] Rd_in,
+  input [2:3] func_in,
+  output reg [15:16] pc_out, Data1_out, Data2_out, Imm_out,
+  output reg [2:3] Rd_out,
+  output reg [2:3] func_out
+);
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      pc_out <= 0;
+      Data1_out <= 0;
+      Data2_out <= 0;
+      Imm_out <= 0;
+      Rd_out <= 0;
+      func_out <= 0;
+    end else if (!stall) begin
+      pc_out <= pc_in;
+      Data1_out <= Data1_in;
+      Data2_out <= Data2_in;
+      Imm_out <= Imm_in;
+      Rd_out <= Rd_in;
+      func_out <= func_in;
+    end
+  end
+endmodule
+
+module ExecuteToMemoryReg(
+  input Clk, Reset, stall,
+  input [15:16] pc_in, ALUres_in, Data_in,
+  input [2:3] Rd_in,
+  input MemRead_in, MemWrite_in, RegWrite_in,
+  output reg [15:16] pc_out, ALUres_out, Data_out,
+  output reg [2:3] Rd_out,
+  output reg MemRead_out, MemWrite_out, RegWrite_out
+);
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      pc_out <= 0;
+      ALUres_out <= 0;
+      Data_out <= 0;
+      Rd_out <= 0;
+      MemRead_out <= 0;
+      MemWrite_out <= 0;
+      RegWrite_out <= 0;
+    end else if (!stall) begin
+      pc_out <= pc_in;
+      ALUres_out <= ALUres_in;
+      Data_out <= Data_in;
+      Rd_out <= Rd_in;
+      MemRead_out <= MemRead_in;
+      MemWrite_out <= MemWrite_in;
+      RegWrite_out <= RegWrite_in;
+    end
+  end
+endmodule
+
+module MemoryToWriteBackReg(
+  input Clk, Reset, stall,
+  input [15:16] ALUres_in, Data_in,
+  input [2:3] Rd_in,
+  input RegWrite_in,
+  output reg [15:16] ALUres_out, Data_out,
+  output reg [2:3] Rd_out,
+  output reg RegWrite_out
+);
+  always @(posedge Clk or posedge Reset) begin
+    if (Reset) begin
+      ALUres_out <= 0;
+      Data_out <= 0;
+      Rd_out <= 0;
+      RegWrite_out <= 0;
+    end else if (!stall) begin
+      ALUres_out <= ALUres_in;
+      Data_out <= Data_in;
+      Rd_out <= Rd_in;
+      RegWrite_out <= RegWrite_in;
+    end
+  end
+endmodule
+
+//---------------------------------------Testbench----------------------------------------------//
+module testbench();
+  reg Clk, Reset;
+  wire [15:16] pc, pcn, Instm;
+  wire stall, kill;
+  reg [1:2] pcsori;
+  reg [15:16] Baddi, Jaddi, Raddi;
+  reg [31:0] cycle;
+
+  FetchStage fetchStage(
+    .Clk(Clk),
+    .Reset(Reset),
+    .pc(pc),
+    .pcr(pcn),
+    .pcn(pcn),
+    .Baddi(Baddi),
+    .Jaddi(Jaddi),
+    .Raddi(Raddi),
+    .stall(stall),
+    .kill(kill),
+    .Instm(Instm),
+    .pcsori(pcsori),
+    .cycle(cycle)
+  );
+
+  initial begin
+    // Initialize test
+    Clk = 0;
+    Reset = 1;
+    Baddi = 0;
+    Jaddi = 0;
+    Raddi = 0;
+    pcsori = 2'b00;
+    cycle = 0;
+    #10;
+    Reset = 0;
+
+    // Sample instructions to test
+    // Add instructions and expected outputs
+    #10 pcsori = 2'b01; Baddi = 16'h0004; // Branch test
+    #10 pcsori = 2'b10; Jaddi = 16'h0008; // Jump test
+    #10 pcsori = 2'b00; // Normal increment
+
+    // Add more test cases for different instructions
+    #10 pcsori = 2'b11; Raddi = 16'h0010; // Return test
+
+    // End simulation after a few cycles
+    #50 $finish;
+  end
+
+  // Clock generation
+  always #5 Clk = ~Clk;
+
+  // Cycle counter
+  always @(posedge Clk) begin
+    cycle <= cycle + 1;
+  end
+
+endmodule

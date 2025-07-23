@@ -1,0 +1,50 @@
+Active-HDL 15.0.261.9132 2024-06-23 22:56:49
+
+Elaboration top modules:
+Verilog Module                testbench
+
+
+---------------------------------------------------------------------------------------------------------
+Verilog Module          | Library               | Info | Compiler Version          | Compilation Options
+---------------------------------------------------------------------------------------------------------
+testbench               | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+FetchStage              | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+FetchToDecodeReg        | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+DecodeStage             | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+DecodeToExecuteReg      | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ALU                     | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ExecuteToMemoryReg      | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_DataMem              | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+MemoryToWriteBackReg    | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+WriteBackStage          | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_InstMem              | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_MainControl          | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_AluControl           | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_SPControl            | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_PCControl            | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Mux2x1x3bit          | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_EX1                  | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_EX2                  | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_EX3                  | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_ADDER                | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Stack                | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Forwarding           | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_DATAHAZERD           | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Mux4x1               | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Mux2x1Stall          | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_ALU                  | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_Mux2x1               | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+ST_regFile              | multi_cycle_processor |      | 15.0.261.9132 (Windows64) | -O2 -sv2k17
+---------------------------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------------------------
+Library                 | Comment
+---------------------------------------------------------------------------------------------------------
+multi_cycle_processor   | None
+---------------------------------------------------------------------------------------------------------
+
+
+Simulation Options: asim -O5 +access +r +m+testbench testbench
+
+
+The performance of simulation is reduced. Version Student Edition

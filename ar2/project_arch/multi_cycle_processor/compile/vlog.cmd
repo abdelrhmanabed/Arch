@@ -1,0 +1,1 @@
+-o C:/My_Designs/project_arch/multi_cycle_processor/compile -lc C:/My_Designs/project_arch/multi_cycle_processor/library.cfg -fl C:/My_Designs/project_arch/multi_cycle_processor/projlib.cfg -pli "C:/Aldec/Active-HDL-Student-Edition/bin/systf.dll" -O2 -sve -msg 5 -sv2k17 -work multi_cycle_processor C:/My_Designs/project_arch/multi_cycle_processor/src/arch.v 

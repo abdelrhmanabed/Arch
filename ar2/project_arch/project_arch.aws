@@ -1,0 +1,13 @@
+[Version]
+Version=15.0
+[Designs]
+multi_cycle_processor=.\multi_cycle_processor\multi_cycle_processor.adf
+[Browser]
+sort=order
+mode=none
+[Order]
+order=1
+[Expand]
+multi_cycle_processor=1
+[Settings]
+Active=multi_cycle_processor

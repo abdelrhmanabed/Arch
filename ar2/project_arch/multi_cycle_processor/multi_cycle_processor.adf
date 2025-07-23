@@ -1,0 +1,68 @@
+[Project]
+Current Flow=Multivendor
+VCS=0
+version=4
+Current Config=compile
+[Configurations]
+compile=multi_cycle_processor
+[Library]
+multi_cycle_processor=.\multi_cycle_processor\multi_cycle_processor.lib
+[$LibMap$]
+multi_cycle_processor=.
+Active_lib=
+[Settings]
+FLOW_TYPE=HDL
+LANGUAGE=VHDL
+REFRESH_FLOW=1
+FLOWTOOLS=ONLY_IMPL
+ON_SERVERFARM_SYNTH=0
+ON_SERVERFARM_IMPL=0
+ON_SERVERFARM_SIM=0
+fileopenfolder=C:\Users\odysh\OneDrive\Desktop\Arch-main
+[IMPLEMENTATION]
+UCF=
+[Files]
+/arch.v=-1
+[Files.Data]
+.\src\arch.v=Verilog Source Code
+[HierarchyViewer]
+HierarchyInformation=
+ShowHide=ShowTopLevel
+Selected=
+[folders]
+name0=ALINT-PRO Workspaces
+directory0=C:\My_Designs\project_arch\multi_cycle_processor\
+extension0=alintws
+name1=Coverage Databases
+directory1=C:\My_Designs\project_arch\multi_cycle_processor\
+extension1=acdb
+name2=Dll Libraries
+directory2=C:\My_Designs\project_arch\multi_cycle_processor\
+extension2=dll
+name3=Event Lists
+directory3=C:\My_Designs\project_arch\multi_cycle_processor\
+extension3=lst
+name4=HTML Files
+directory4=C:\My_Designs\project_arch\multi_cycle_processor\
+extension4=htm;html
+name5=Log Files
+directory5=C:\My_Designs\project_arch\multi_cycle_processor\
+extension5=log;htm;xml;txt
+name6=Matlab/Simulink Files
+directory6=C:\My_Designs\project_arch\
+extension6=m;mdl;slx
+name7=Memory Files
+directory7=C:\My_Designs\project_arch\multi_cycle_processor\
+extension7=mem;mif;hex
+name8=PDF Files
+directory8=C:\My_Designs\project_arch\multi_cycle_processor\
+extension8=pdf
+name9=Profiler Databases
+directory9=C:\My_Designs\project_arch\multi_cycle_processor\
+extension9=tbp
+name10=Script Files
+directory10=C:\My_Designs\project_arch\multi_cycle_processor\
+extension10=do;tcl;pl
+name11=Waveform Files
+directory11=C:\My_Designs\project_arch\multi_cycle_processor\
+extension11=asdb;awc;asdbc;asdbe
